@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const navy = Color(0xFF101B33);
 const teal = Color(0xFF16B8A6);
 const mapStyleUrl = String.fromEnvironment('DZ_MAP_STYLE_URL');
+const mapAttribution = String.fromEnvironment('DZ_MAP_ATTRIBUTION');
+const mapAttributionUrl = String.fromEnvironment('DZ_MAP_ATTRIBUTION_URL');
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,7 +88,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
   }
 
   Widget _mapArea() {
-    if (mapStyleUrl.isEmpty) {
+    if (mapStyleUrl.isEmpty || mapAttribution.isEmpty || mapAttributionUrl.isEmpty) {
       return Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -126,7 +129,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'سنفعّل الطرق بعد اعتماد مزود خرائط مرخّص للاستخدام التجاري.',
+                    'لن نعرض الخريطة قبل ضبط رابطها وإسناد مصدرها ورابط حقوقه. هذا يحمي التطبيق من عرض خريطة بلا ترخيص واضح.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Color(0xFF64748B), height: 1.5),
                   ),
@@ -149,19 +152,26 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           compassEnabled: true,
           myLocationEnabled: false,
         ),
-        const Positioned(
+        Positioned(
           right: 8,
           bottom: 205,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.all(Radius.circular(6)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-              child: Text(
-                '© OpenStreetMap contributors',
-                style: TextStyle(fontSize: 10, color: navy),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () async {
+                final uri = Uri.tryParse(mapAttributionUrl);
+                if (uri != null && (uri.scheme == 'https' || uri.scheme == 'http')) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                child: Text(
+                  mapAttribution,
+                  style: const TextStyle(fontSize: 10, color: navy, decoration: TextDecoration.underline),
+                ),
               ),
             ),
           ),
