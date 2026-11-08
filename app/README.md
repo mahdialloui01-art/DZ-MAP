@@ -1,42 +1,33 @@
 # DZ MAP Flutter app
 
 ## المتطلبات
-- Flutter 3.29+ وDart 3.7+ على الأقل للنسخة الأولية.
-- Android Studio أو Android SDK حديث.
-- JDK 21 موصى به لإصدارات MapLibre الحديثة.
+- Flutter stable (المشروع يستخدم Dart 3.7+).
+- Android SDK حديث.
+- JDK الذي توفره بيئة Flutter/GitHub Actions.
 
-## إنشاء ملفات المنصات
+## إنشاء ملفات Android محلياً
 من داخل مجلد app نفّذ:
-
 ```bash
-flutter create . --platforms=android,ios
+flutter create . --platforms=android --org dz.dzmap --project-name dz_map
 flutter pub get
 ```
 
 ## إعداد رابط Style للخرائط
 لا يوجد مزود خرائط إنتاجي مفعّل في المستودع حتى الآن. بعد اختيار مزود يسمح بالاستخدام التجاري، مرّر رابط MapLibre Style URL:
-
 ```bash
 flutter run --dart-define=DZ_MAP_STYLE_URL=https://YOUR-LICENSED-PROVIDER/style.json
 ```
+ويجب أيضاً تمرير إسناد المزود ورابط صفحة حقوقه عبر:
+- `DZ_MAP_ATTRIBUTION`
+- `DZ_MAP_ATTRIBUTION_URL`
 
-لا تستبدل الرابط بمصدر عشوائي أو بخادم بلاطات عام دون مراجعة شروطه. يجب أن يحتوي الـ style ومصادره على الإسناد المطلوب من المزود.
+لا تستبدل الرابط بمصدر عشوائي أو بخادم بلاطات عام دون مراجعة شروطه. عند عدم إعداد المتغيرات الثلاثة يعرض التطبيق شاشة توضيحية بدلاً من تحميل خريطة من مصدر غير معتمد.
 
-## ملاحظة
-عند عدم إعداد DZ_MAP_STYLE_URL يعرض التطبيق شاشة توضيحية بدلاً من تحميل خريطة من مصدر غير معتمد.
+## بناء APK آلياً
+يوجد GitHub Actions workflow في `.github/workflows/build-apk.yml`. كل تحديث على `main` داخل `app/` يشغّل بناء APK بنسخة release، ويرفع الناتج كـ artifact باسم `dz-map-release-apk` لمدة 14 يوماً. من تبويب Actions في GitHub افتح آخر تشغيل ثم نزّل artifact.
 
-## Google Play (مهم)
-بحسب متطلبات Google Play التي تمت مراجعتها في 8 نوفمبر 2026، التطبيقات الجديدة والتحديثات يجب أن تستهدف Android 16 / API 36 أو أعلى ابتداءً من 31 أغسطس 2026. بعد إنشاء مجلد android عبر flutter create، تحقق من targetSdkVersion في إعدادات Gradle واضبطه على 36 أو أعلى قبل تجهيز AAB. راجع docs/GOOGLE_PLAY_CHECKLIST.md وأعد التحقق من السياسة وقت الإرسال.
+## أذونات Android
+الـ workflow ينشئ مشروع Android ويضيف أذونات الإنترنت والموقع التقريبي والدقيق. يطلب التطبيق إذن الموقع فقط عندما يضغط المستخدم زر «موقعي»، ولا يطلب الموقع في الخلفية.
 
-
-## أذونات الموقع (Android)
-بعد إنشاء مجلد Android بواسطة `flutter create . --platforms=android,ios`، افتح:
-`android/app/src/main/AndroidManifest.xml`
-وأضف السطرين التاليين مباشرة داخل عنصر `<manifest>` وقبل `<application>`:
-
-```xml
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-```
-
-يطلب التطبيق الإذن وقت ضغط المستخدم على زر موقعي، ويستخدم الموقع أثناء استعمال التطبيق فقط. لا نطلب إذن الموقع في الخلفية. يجب اختبار نافذة الإذن على Android 12 أو أحدث، لأن المستخدم يستطيع اختيار موقع تقريبي بدلاً من الدقيق.
+## Google Play
+إعداد target SDK في workflow هو API 36. هذا لا يعني أن التطبيق جاهز للنشر: يلزم اختيار مزود خرائط مرخص، إعداد مفاتيح الإنتاج بأمان، اختبار الخريطة والموقع على أجهزة فعلية، وتجهيز سياسة الخصوصية وبيانات الأمان وتوقيع النشر.
