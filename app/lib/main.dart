@@ -65,7 +65,9 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
               // Use Android hybrid composition to avoid a blank TextureView
               // surface on devices where Flutter texture compositing fails.
               androidView: const AndroidMapView(
-                surface: AndroidMapSurface.surfaceView,
+                // TextureView is composed as a Flutter texture. This avoids
+                // SurfaceView clipping/blank-region issues on some Android devices.
+                surface: AndroidMapSurface.textureView,
                 composition: AndroidComposition.flutter,
               ),
               // Keep map navigation focused on Algeria's geographic extent.
