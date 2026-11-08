@@ -57,11 +57,11 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
           Positioned.fill(
             child: MapLibreMap(
               styleString: mapStyleUrl,
-              // Use TextureView so the native map is composited with Flutter
-              // widgets reliably instead of appearing as a separate white layer.
+              // Use Android hybrid composition to avoid a blank TextureView
+              // surface on devices where Flutter texture compositing fails.
               androidView: const AndroidMapView(
-                surface: AndroidMapSurface.textureView,
-                composition: AndroidComposition.flutter,
+                surface: AndroidMapSurface.surfaceView,
+                composition: AndroidComposition.hybridComposition,
               ),
               initialCameraPosition: const CameraPosition(
                 target: LatLng(28.0, 1.65),
