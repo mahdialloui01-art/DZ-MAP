@@ -29,29 +29,6 @@ jobs:
         working-directory: app
         run: flutter create . --platforms=android --org dz.dzmap --project-name dz_map
 
-      - name: Enable Android Hybrid Composition++
-        working-directory: app
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('android/app/src/main/AndroidManifest.xml')
-          s = p.read_text()
-          app_tag = '<application'
-          start = s.find(app_tag)
-          end = s.find('>', start) + 1
-          if start < 0 or end <= 0:
-              raise SystemExit('Android application tag not found')
-          metadata = '''
-                  <meta-data
-                      android:name="io.flutter.embedding.android.EnableHcpp"
-                      android:value="true" />'''
-          if 'io.flutter.embedding.android.EnableHcpp' not in s:
-              s = s[:end] + metadata + s[end:]
-          p.write_text(s)
-          print('Enabled Hybrid Composition++ when supported by Android/device GPU')
-          PY
-
       - name: Configure Android permissions and target API
         working-directory: app
         shell: bash
