@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 
 const navy = Color(0xFF101B33);
 const teal = Color(0xFF16B8A6);
@@ -43,6 +44,9 @@ class HomeMapScreen extends StatefulWidget {
 
 class _HomeMapScreenState extends State<HomeMapScreen> {
   int selectedTab = 0;
+  MapLibreMapController? _mapController;
+  bool _locating = false;
+  Position? _currentPosition;
 
   @override
   Widget build(BuildContext context) {
@@ -60,8 +64,10 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
                 heroTag: 'my-location',
                 backgroundColor: Colors.white,
                 foregroundColor: navy,
-                onPressed: () => _message('سيتم تفعيل GPS بعد إضافة أذونات الموقع.'),
-                child: const Icon(Icons.my_location),
+                onPressed: _locating ? null : _locateMe,
+                child: _locating
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location),
               ),
             ),
             Positioned(
@@ -151,6 +157,7 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
           ),
           compassEnabled: true,
           myLocationEnabled: false,
+          onMapCreated: (controller) => _mapController = controller,
         ),
         Positioned(
           right: 8,
@@ -287,6 +294,62 @@ class _HomeMapScreenState extends State<HomeMapScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _locateMe() async {
+    setState(() => _locating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _message('فعّل خدمة الموقع GPS في الهاتف ثم أعد المحاولة.');
+        await Geolocator.openLocationSettings();
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        _message('لم تسمح للتطبيق باستعمال موقعك.');
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        _message('إذن الموقع مرفوض نهائياً. افتح إعدادات التطبيق واسمح بالموقع.');
+        await Geolocator.openAppSettings();
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 25),
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _currentPosition = position);
+
+      final controller = _mapController;
+      if (controller != null) {
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(
+            LatLng(position.latitude, position.longitude),
+            15,
+          ),
+        );
+        _message('تم تحديد موقعك على الخريطة.');
+      } else {
+        _message('موقعك: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)} — ننتظر ربط الخريطة الحقيقية لعرضه عليها.');
+      }
+    } on LocationServiceDisabledException {
+      _message('خدمة الموقع غير مفعّلة في الهاتف.');
+    } on PermissionDeniedException {
+      _message('إذن الموقع غير متاح. راجع إعدادات التطبيق.');
+    } catch (error) {
+      _message('تعذر تحديد الموقع حالياً. تحقق من GPS والإنترنت ثم أعد المحاولة.');
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
   }
 
   void _message(String message) {
