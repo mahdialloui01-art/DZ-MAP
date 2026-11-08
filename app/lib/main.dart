@@ -65,8 +65,8 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
               // Use MapLibre's documented Android defaults. Avoid forcing a
               // TextureView/composition combination while diagnosing blank views.
               androidView: const AndroidMapView(
-                surface: AndroidMapSurface.surfaceView,
-                composition: AndroidComposition.flutter,
+                surface: AndroidMapSurface.textureView,
+                composition: AndroidComposition.hybridComposition,
               ),
               foregroundLoadColor: Colors.transparent,
               // Keep map navigation focused on Algeria's geographic extent.
