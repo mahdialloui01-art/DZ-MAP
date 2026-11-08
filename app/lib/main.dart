@@ -63,9 +63,16 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
                 surface: AndroidMapSurface.surfaceView,
                 composition: AndroidComposition.hybridComposition,
               ),
+              // Keep map navigation focused on Algeria's geographic extent.
+              cameraTargetBounds: CameraTargetBounds(
+                LatLngBounds(
+                  southwest: LatLng(18.9, -8.7),
+                  northeast: LatLng(37.2, 12.1),
+                ),
+              ),
               initialCameraPosition: const CameraPosition(
                 target: LatLng(28.0, 1.65),
-                zoom: 4.25,
+                zoom: 4.6,
               ),
               compassEnabled: true,
               myLocationEnabled: false,
