@@ -62,14 +62,13 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
           Positioned.fill(
             child: MapLibreMap(
               styleString: mapStyleUrl,
-              // Use Android hybrid composition to avoid a blank TextureView
-              // surface on devices where Flutter texture compositing fails.
+              // Use MapLibre's documented Android defaults. Avoid forcing a
+              // TextureView/composition combination while diagnosing blank views.
               androidView: const AndroidMapView(
-                // TextureView is composed as a Flutter texture. This avoids
-                // SurfaceView clipping/blank-region issues on some Android devices.
-                surface: AndroidMapSurface.textureView,
+                surface: AndroidMapSurface.surfaceView,
                 composition: AndroidComposition.flutter,
               ),
+              foregroundLoadColor: Colors.transparent,
               // Keep map navigation focused on Algeria's geographic extent.
               cameraTargetBounds: CameraTargetBounds(
                 LatLngBounds(
@@ -88,7 +87,6 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
               },
               onStyleLoadedCallback: () {
                 if (mounted) setState(() => _mapReady = true);
-                _loadAlgeriaMask();
               },
             ),
           ),
