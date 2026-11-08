@@ -66,7 +66,7 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
               // surface on devices where Flutter texture compositing fails.
               androidView: const AndroidMapView(
                 surface: AndroidMapSurface.surfaceView,
-                composition: AndroidComposition.hybridComposition,
+                composition: AndroidComposition.flutter,
               ),
               // Keep map navigation focused on Algeria's geographic extent.
               cameraTargetBounds: CameraTargetBounds(
