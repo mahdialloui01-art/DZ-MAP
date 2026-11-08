@@ -277,8 +277,8 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
                     ),
                   ),
                   Text(
-                    'خريطة الجزائر',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                    'خريطة الجزائر · اختبار 3EBF1F',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
                   ),
                 ],
               ),
