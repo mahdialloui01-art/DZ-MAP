@@ -1,0 +1,79 @@
+name: Build DZ MAP APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android platform project
+        working-directory: app
+        run: flutter create . --platforms=android --org dz.dzmap --project-name dz_map
+
+      - name: Configure Android permissions and target API
+        working-directory: app
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          marker = '<manifest'
+          end = s.find('>', s.find(marker)) + 1
+          permissions = '''
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />'''
+          if 'android.permission.ACCESS_FINE_LOCATION' not in s:
+              s = s[:end] + permissions + s[end:]
+          p.write_text(s)
+
+          candidates = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
+          gradle = next((x for x in candidates if x.exists()), None)
+          if gradle is None:
+              raise SystemExit('Android app Gradle file not found')
+          g = gradle.read_text()
+          if 'targetSdk = flutter.targetSdkVersion' in g:
+              g = g.replace('targetSdk = flutter.targetSdkVersion', 'targetSdk = 36')
+          elif 'targetSdkVersion flutter.targetSdkVersion' in g:
+              g = g.replace('targetSdkVersion flutter.targetSdkVersion', 'targetSdkVersion 36')
+          elif 'targetSdk = 36' not in g and 'targetSdkVersion 36' not in g:
+              raise SystemExit('Could not safely set target SDK to 36')
+          gradle.write_text(g)
+          print(f'Configured {gradle} for target SDK 36')
+          PY
+
+      - name: Resolve dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: app
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dz-map-release-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
