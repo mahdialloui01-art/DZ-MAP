@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
@@ -48,6 +51,8 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
   MapLibreMapController? _controller;
   bool _locating = false;
   bool _mapReady = false;
+  bool _maskLoading = false;
+  bool _maskApplied = false;
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +86,7 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
               },
               onStyleLoadedCallback: () {
                 if (mounted) setState(() => _mapReady = true);
+                _loadAlgeriaMask();
               },
             ),
           ),
@@ -131,6 +137,108 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
         ],
       ),
     );
+  }
+
+
+  // Fetch the official country-level outline from geoBoundaries (DZA ADM0),
+  // then draw a world-sized polygon with Algeria cut out as a transparent hole.
+  // This keeps the basemap visible only inside Algeria without fabricating
+  // boundary coordinates in the app.
+  Future<void> _loadAlgeriaMask() async {
+    if (_maskLoading || _maskApplied) return;
+    final controller = _controller;
+    if (controller == null) return;
+    _maskLoading = true;
+    try {
+      final metadataResponse = await http.get(
+        Uri.parse('https://www.geoboundaries.org/api/current/gbOpen/DZA/ADM0/'),
+      ).timeout(const Duration(seconds: 25));
+      if (metadataResponse.statusCode != 200) {
+        throw Exception('geoBoundaries metadata unavailable');
+      }
+      final metadata = jsonDecode(metadataResponse.body) as Map<String, dynamic>;
+      final geometryUrl = (metadata['simplifiedGeometryGeoJSON'] as String?)?.isNotEmpty == true
+          ? metadata['simplifiedGeometryGeoJSON'] as String
+          : metadata['gjDownloadURL'] as String;
+      final boundaryResponse = await http.get(Uri.parse(geometryUrl))
+          .timeout(const Duration(seconds: 35));
+      if (boundaryResponse.statusCode != 200) {
+        throw Exception('Algeria boundary unavailable');
+      }
+      final boundaryData = jsonDecode(boundaryResponse.body) as Map<String, dynamic>;
+      final features = boundaryData['features'] as List<dynamic>;
+      if (features.isEmpty) throw Exception('Empty Algeria boundary');
+      final feature = features.first as Map<String, dynamic>;
+      final geometry = feature['geometry'] as Map<String, dynamic>;
+      final type = geometry['type'] as String;
+      final dynamic rawCoordinates = geometry['coordinates'];
+      final List<List<List<num>>> exteriorRings = [];
+      if (type == 'Polygon') {
+        final rings = rawCoordinates as List<dynamic>;
+        exteriorRings.add((rings.first as List<dynamic>)
+            .map((point) => (point as List<dynamic>).cast<num>())
+            .toList());
+      } else if (type == 'MultiPolygon') {
+        for (final polygon in rawCoordinates as List<dynamic>) {
+          final rings = polygon as List<dynamic>;
+          exteriorRings.add((rings.first as List<dynamic>)
+              .map((point) => (point as List<dynamic>).cast<num>())
+              .toList());
+        }
+      } else {
+        throw Exception('Unsupported Algeria boundary geometry: $type');
+      }
+
+      // GeoJSON requires the exterior world ring counter-clockwise and
+      // interior rings clockwise for consistent polygon-hole rendering.
+      final worldRing = [
+        [-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85],
+      ];
+      final holes = exteriorRings.map((ring) => ring.reversed.toList()).toList();
+      final mask = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'properties': {'name': 'Outside Algeria'},
+            'geometry': {
+              'type': 'Polygon',
+              'coordinates': [worldRing, ...holes],
+            },
+          },
+        ],
+      };
+
+      await controller.addGeoJsonSource('dz-algeria-mask-source', mask);
+      await controller.addFillLayer(
+        'dz-algeria-mask-source',
+        'dz-algeria-outside-mask',
+        const FillLayerProperties(
+          fillColor: '#DCE5E8',
+          fillOpacity: 0.96,
+          fillAntialias: true,
+        ),
+      );
+      await controller.addGeoJsonSource('dz-algeria-border-source', {
+        'type': 'FeatureCollection',
+        'features': [feature],
+      });
+      await controller.addLineLayer(
+        'dz-algeria-border-source',
+        'dz-algeria-border-line',
+        const LineLayerProperties(
+          lineColor: '#16B8A6',
+          lineWidth: 2.2,
+          lineOpacity: 1,
+        ),
+      );
+      _maskApplied = true;
+    } catch (error) {
+      debugPrint('DZ MAP Algeria mask could not be applied: $error');
+      if (mounted) _message('تعذر تحميل حدود الجزائر. تحقق من الإنترنت.');
+    } finally {
+      _maskLoading = false;
+    }
   }
 
   Widget _topBar() {
@@ -237,7 +345,7 @@ class _AlgeriaMapScreenState extends State<AlgeriaMapScreen> {
         child: const Padding(
           padding: EdgeInsets.symmetric(horizontal: 9, vertical: 6),
           child: Text(
-            'OpenFreeMap · © OpenMapTiles · © OpenStreetMap',
+            'OpenFreeMap · © OpenStreetMap · geoBoundaries',
             style: TextStyle(
               fontSize: 9,
               color: navy,
